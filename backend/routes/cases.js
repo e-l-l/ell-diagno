@@ -1,45 +1,45 @@
 var express = require("express");
+const { casePrompt } = require("../utils/prompts");
 var router = express.Router();
 const { openai } = require("@ai-sdk/openai");
 const { generateObject } = require("ai");
-const { z } = require("zod");
-
-// Define the schema for the case object to match your database structure
-const optionSchema = z.object({
-  name: z.string().describe("Test or diagnosis option name"),
-  isCorrect: z
-    .boolean()
-    .describe(
-      "Whether this option is correct (should be false for multiple choice)"
-    ),
-  reply: z.string().describe("Reply message if user selects this option"),
-});
-
-const caseSchema = z.object({
-  symptoms: z.string().describe("Patient symptoms as text"),
-  patient: z.string().describe("Patient name"),
-  test_info: z
-    .array(optionSchema)
-    .length(4)
-    .describe("Array of 4 test options for the case"),
-  diagnosis_info: z
-    .array(optionSchema)
-    .length(4)
-    .describe("Array of 4 diagnosis options for the case"),
-});
+const { supabaseAdmin } = require("../config/supabase");
+const { caseSchema } = require("../utils/schema");
 
 /* GET cases listing. */
-router.get("/", function (req, res, next) {
-  res.send("cases");
+router.get("/", async function (req, res, next) {
+  try {
+    const { data: cases, error } = await supabaseAdmin
+      .from("cases")
+      .select("*");
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to fetch cases",
+        details: error.message,
+      });
+    }
+
+    res.json({
+      success: true,
+      cases: cases || [],
+    });
+  } catch (error) {
+    console.error("Error fetching cases:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch cases",
+      details: error.message,
+    });
+  }
 });
 
 /* POST generate case using AI */
 router.post("/generate", async function (req, res, next) {
   try {
-    // You can customize this prompt based on your needs
-    const prompt =
-      req.body.prompt ||
-      "Generate a realistic medical case with patient symptoms, test results, and diagnosis information.";
+    const prompt = req.body.prompt || casePrompt;
 
     const { object } = await generateObject({
       model: openai("o3-mini"),
@@ -47,9 +47,26 @@ router.post("/generate", async function (req, res, next) {
       prompt: prompt,
     });
 
+    // Save the generated case to Supabase
+    const { data: savedCase, error: saveError } = await supabaseAdmin
+      .from("cases")
+      .insert([object])
+      .select()
+      .single();
+
+    if (saveError) {
+      console.error("Error saving case to Supabase:", saveError);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to save generated case",
+        details: saveError.message,
+      });
+    }
+
     res.json({
       success: true,
-      case: object,
+      case: savedCase,
+      message: "Case generated and saved successfully",
     });
   } catch (error) {
     console.error("Error generating case:", error);
