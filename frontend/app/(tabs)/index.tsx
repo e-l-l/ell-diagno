@@ -37,7 +37,7 @@ export default function HomeScreen() {
       if (fetchedCases.length < 3) {
         console.log("Need to generate more cases");
         // Uncomment when you want to generate cases
-        // await generateNNewCases(db, 3 - fetchedCases.length, setCases);
+        await generateNNewCases(db, 3 - fetchedCases.length, setCases);
       }
     } catch (error) {
       console.error("Error fetching cases:", error);

@@ -78,4 +78,46 @@ router.post("/generate", async function (req, res, next) {
   }
 });
 
+router.get("/unused", async function (req, res, next) {
+  try {
+    // First, get all cases with their case_actions
+    const { data: cases, error } = await supabaseAdmin.from("cases").select(
+      `
+        *,
+        case_actions (
+          is_correct
+        )
+      `
+    );
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to fetch cases",
+        details: error.message,
+      });
+    }
+
+    // Filter cases that have less than 2 correct case_actions
+    const filteredCases = cases.filter((caseItem) => {
+      const correctActionsCount = caseItem.case_actions.filter(
+        (action) => action.is_correct === true
+      ).length;
+      return correctActionsCount < 2;
+    });
+
+    res.json({
+      success: true,
+      cases: filteredCases || [],
+    });
+  } catch (error) {
+    console.error("Error fetching cases:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch cases",
+      details: error.message,
+    });
+  }
+});
 module.exports = router;
