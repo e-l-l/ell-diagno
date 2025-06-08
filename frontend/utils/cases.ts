@@ -2,6 +2,7 @@ import { Alert } from "react-native";
 import { SQLiteDatabase } from "expo-sqlite";
 import { createDatabaseManager } from "./database";
 import { DatabaseStatus } from "./status";
+import { generateNNewCases } from "./caseGeneration";
 
 /**
  * Fetch cases with database status check
@@ -32,7 +33,7 @@ export const fetchCasesWithStatus = async (
     if (fetchedCases.length < 3) {
       console.log("Need to generate more cases");
       // Uncomment when you want to generate cases
-      // await generateNNewCases(db, 3 - fetchedCases.length, setCases);
+      await generateNNewCases(db, 3 - fetchedCases.length, setCases);
     }
   } catch (error) {
     console.error("Error fetching cases:", error);

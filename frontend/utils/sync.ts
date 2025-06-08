@@ -45,20 +45,6 @@ export const retrySyncWithBackoff = async (
  * Initialize database with sync and migrations
  */
 export const initializeDatabase = async (db: SQLiteDatabase): Promise<void> => {
-  // Only attempt sync if we have proper credentials
-  const hasCredentials =
-    process.env.EXPO_PUBLIC_TURSO_DB_URL &&
-    process.env.EXPO_PUBLIC_TURSO_DB_AUTH_TOKEN;
-
-  if (hasCredentials) {
-    const syncSuccess = await retrySyncWithBackoff(db);
-    if (!syncSuccess) {
-      console.warn("Continuing with local database only");
-    }
-  } else {
-    console.warn("No Turso credentials found, using local database only");
-  }
-
   // Proceed with migrations regardless of sync status
   try {
     const DBVERSION = 1;
@@ -104,3 +90,38 @@ export const initializeDatabase = async (db: SQLiteDatabase): Promise<void> => {
     throw migrationError; // Re-throw migration errors as they're critical
   }
 };
+
+// export const initializeDatabase = async (db: SQLiteDatabase): Promise<void> => {
+//     console.log("Initializing database");
+// try {
+//   // Drop all tables
+//   await db.execAsync("DROP TABLE IF EXISTS case_actions");
+//   await db.execAsync("DROP TABLE IF EXISTS cases");
+  
+//   // Recreate tables with fresh schema
+//   await db.execAsync(
+//     "CREATE TABLE IF NOT EXISTS cases (id TEXT PRIMARY KEY, symptoms TEXT NOT NULL, patient TEXT NOT NULL, test_info TEXT NOT NULL, diagnosis_info TEXT NOT NULL)"
+//   );
+//   await db.execAsync(
+//     `CREATE TABLE IF NOT EXISTS case_actions (
+//       id TEXT PRIMARY KEY,
+//       case_id TEXT NOT NULL,
+//       type TEXT NOT NULL,
+//       value TEXT NOT NULL,
+//       is_correct INTEGER NOT NULL,
+//       attempt INTEGER NOT NULL,
+//       synced INTEGER NOT NULL,
+//       created_at TEXT NOT NULL,
+//       FOREIGN KEY (case_id) REFERENCES cases (id)
+//     )`
+//   );
+  
+//   // Reset database version
+//   await db.execAsync("PRAGMA user_version = 0");
+  
+//   console.log("Database reset complete");
+// } catch (error) {
+//   console.error("Error resetting database:", error);
+//   throw error;
+// }
+// };
