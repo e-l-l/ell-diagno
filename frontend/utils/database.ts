@@ -140,6 +140,50 @@ export class DatabaseManager {
   }
 
   /**
+   * Get unused cases (cases with less than 2 correct actions)
+   */
+  async getUnusedCases(): Promise<any[]> {
+    const result = await this.safeExecute(async () => {
+      // Get all cases with their correct action counts
+      const query = `
+        SELECT c.*, 
+               COALESCE(correct_actions.count, 0) as correct_actions_count
+        FROM cases c
+        LEFT JOIN (
+          SELECT case_id, COUNT(*) as count
+          FROM case_actions 
+          WHERE is_correct = 1
+          GROUP BY case_id
+        ) correct_actions ON c.id = correct_actions.case_id
+        WHERE COALESCE(correct_actions.count, 0) < 2
+        ORDER BY c.id DESC
+      `;
+      return await this.db.getAllAsync(query);
+    });
+    return result || [];
+  }
+
+  /**
+   * Print all case_action table contents for debugging
+   */
+  async printCaseActionTable(): Promise<void> {
+    const result = await this.safeExecute(async () => {
+      return await this.db.getAllAsync(
+        "SELECT * FROM case_actions ORDER BY created_at DESC"
+      );
+    });
+
+    if (result && result.length > 0) {
+      console.log("=== CASE_ACTION TABLE CONTENTS ===");
+      console.table(result);
+      console.log(`Total case_actions: ${result.length}`);
+    } else {
+      console.log("=== CASE_ACTION TABLE ===");
+      console.log("No case_actions found in the database");
+    }
+  }
+
+  /**
    * Attempt to sync with remote database
    */
   async attemptSync(): Promise<boolean> {

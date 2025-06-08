@@ -1,6 +1,7 @@
 import CaseCard from "@/components/chat-card";
 import { generateNNewCases } from "@/utils/index";
 import { createDatabaseManager } from "@/utils/database";
+import { seedSampleCase } from "@/utils/seedData";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { useEffect, useState } from "react";
@@ -28,16 +29,22 @@ export default function HomeScreen() {
       const isConnected = await dbManager.checkConnection();
       setDbStatus(isConnected ? "online" : "offline");
 
-      // Fetch cases using the database manager
-      const fetchedCases = await dbManager.getAllCases();
-      console.log("Cases fetched:", fetchedCases.length);
+      // Seed sample case first
+      await seedSampleCase(db);
+
+      // Print case_action table for debugging
+      await dbManager.printCaseActionTable();
+
+      // Fetch only unused cases (cases with less than 2 correct actions)
+      const fetchedCases = await dbManager.getUnusedCases();
+      console.log("Unused cases fetched:", fetchedCases.length);
       setCases(fetchedCases);
 
-      // Only generate new cases if we have fewer than 3
+      // Only generate new cases if we have fewer than 3 unused cases
       if (fetchedCases.length < 3) {
         console.log("Need to generate more cases");
         // Uncomment when you want to generate cases
-        await generateNNewCases(db, 3 - fetchedCases.length, setCases);
+        // await generateNNewCases(db, 3 - fetchedCases.length, setCases);
       }
     } catch (error) {
       console.error("Error fetching cases:", error);
@@ -153,10 +160,10 @@ export default function HomeScreen() {
 
       <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 20 }}>
         {isLoading
-          ? "Loading cases..."
+          ? "Loading unused cases..."
           : cases.length > 0
-          ? "Medical Cases"
-          : "No cases available"}
+          ? "Medical Cases (Unused)"
+          : "No unused cases available"}
       </Text>
 
       {!isLoading && cases.length === 0 && (
@@ -169,8 +176,8 @@ export default function HomeScreen() {
           }}
         >
           {dbStatus === "offline"
-            ? "No local cases found. Connect to internet to sync cases from server."
-            : "No cases available. New cases will be generated automatically."}
+            ? "No unused local cases found. Connect to internet to sync cases from server."
+            : "No unused cases available. Cases with less than 2 correct actions will appear here."}
         </Text>
       )}
 

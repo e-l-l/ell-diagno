@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { SQLiteProvider } from "expo-sqlite";
 
 // Retry function for database sync
-const retrySyncWithBackoff = async (db: any, maxRetries = 3) => {
+const retrySyncWithBackoff = async (db: any, maxRetries = 1) => {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(
