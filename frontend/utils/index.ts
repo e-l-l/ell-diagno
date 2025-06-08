@@ -1,6 +1,11 @@
 import { SQLiteDatabase } from "expo-sqlite";
 import { generateCase, getUnusedCases } from "./apis";
 
+export { createDatabaseManager } from "./database";
+export { initializeDatabase, retrySyncWithBackoff } from "./sync";
+export { getStatusColor, getStatusText, type DatabaseStatus } from "./status";
+export { fetchCasesWithStatus, handleManualSync } from "./cases";
+
 export const generateNNewCases = async (
   db: SQLiteDatabase,
   n: number,

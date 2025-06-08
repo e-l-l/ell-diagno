@@ -1,108 +1,29 @@
 import CaseCard from "@/components/chat-card";
 import { generateNNewCases } from "@/utils/index";
-import { createDatabaseManager } from "@/utils/database";
-import { seedSampleCase } from "@/utils/seedData";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, Alert } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
+import { fetchCasesWithStatus, handleManualSync } from "@/utils/cases";
+import { getStatusColor, getStatusText, DatabaseStatus } from "@/utils/status";
 
 export default function HomeScreen() {
   const [cases, setCases] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [dbStatus, setDbStatus] = useState<"online" | "offline" | "unknown">(
-    "unknown"
-  );
+  const [dbStatus, setDbStatus] = useState<DatabaseStatus>("unknown");
   const db = useSQLiteContext();
   const router = useRouter();
 
   useEffect(() => {
-    fetchCasesWithStatus();
+    handleFetchCases();
   }, []);
 
-  const fetchCasesWithStatus = async () => {
-    setIsLoading(true);
-    try {
-      const dbManager = createDatabaseManager(db);
-
-      // Check database connection
-      const isConnected = await dbManager.checkConnection();
-      setDbStatus(isConnected ? "online" : "offline");
-
-      // Seed sample case first
-      await seedSampleCase(db);
-
-      // Print case_action table for debugging
-      await dbManager.printCaseActionTable();
-
-      // Fetch only unused cases (cases with less than 2 correct actions)
-      const fetchedCases = await dbManager.getUnusedCases();
-      console.log("Unused cases fetched:", fetchedCases.length);
-      setCases(fetchedCases);
-
-      // Only generate new cases if we have fewer than 3 unused cases
-      if (fetchedCases.length < 3) {
-        console.log("Need to generate more cases");
-        // Uncomment when you want to generate cases
-        // await generateNNewCases(db, 3 - fetchedCases.length, setCases);
-      }
-    } catch (error) {
-      console.error("Error fetching cases:", error);
-      Alert.alert(
-        "Database Error",
-        "There was an issue loading your cases. The app will continue in offline mode.",
-        [{ text: "OK" }]
-      );
-      setDbStatus("offline");
-    } finally {
-      setIsLoading(false);
-    }
+  const handleFetchCases = async () => {
+    await fetchCasesWithStatus(db, setCases, setDbStatus, setIsLoading);
   };
 
-  const handleManualSync = async () => {
-    try {
-      const dbManager = createDatabaseManager(db);
-      const syncSuccess = await dbManager.attemptSync();
-
-      if (syncSuccess) {
-        Alert.alert(
-          "Sync Successful",
-          "Database has been synced with the server."
-        );
-        setDbStatus("online");
-        await fetchCasesWithStatus();
-      } else {
-        Alert.alert(
-          "Sync Failed",
-          "Unable to sync with server. Check your internet connection."
-        );
-      }
-    } catch (error) {
-      console.error("Manual sync error:", error);
-      Alert.alert("Sync Error", "An error occurred while syncing.");
-    }
-  };
-
-  const getStatusColor = () => {
-    switch (dbStatus) {
-      case "online":
-        return "#4CAF50";
-      case "offline":
-        return "#FF9800";
-      default:
-        return "#9E9E9E";
-    }
-  };
-
-  const getStatusText = () => {
-    switch (dbStatus) {
-      case "online":
-        return "Online";
-      case "offline":
-        return "Offline";
-      default:
-        return "Checking...";
-    }
+  const handleSync = async () => {
+    await handleManualSync(db, setDbStatus, handleFetchCases);
   };
 
   return (
@@ -131,19 +52,19 @@ export default function HomeScreen() {
             width: 12,
             height: 12,
             borderRadius: 6,
-            backgroundColor: getStatusColor(),
+            backgroundColor: getStatusColor(dbStatus),
             marginRight: 8,
           }}
         />
-        <Text style={{ fontSize: 14, color: getStatusColor() }}>
-          {getStatusText()}
+        <Text style={{ fontSize: 14, color: getStatusColor(dbStatus) }}>
+          {getStatusText(dbStatus)}
         </Text>
       </View>
 
       {/* Manual Sync Button (only show when offline) */}
       {dbStatus === "offline" && (
         <TouchableOpacity
-          onPress={handleManualSync}
+          onPress={handleSync}
           style={{
             backgroundColor: "#2196F3",
             padding: 10,
@@ -162,7 +83,7 @@ export default function HomeScreen() {
         {isLoading
           ? "Loading unused cases..."
           : cases.length > 0
-          ? "Medical Cases (Unused)"
+          ? "Medical Cases"
           : "No unused cases available"}
       </Text>
 
